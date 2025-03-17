@@ -96,16 +96,32 @@ def get_articles():
             
             for item in items:
                 fields = item.get("fields", {})
+                # 确保content是字符串类型
                 content = fields.get("概要内容输出", "")
+                if not isinstance(content, str):
+                    content = str(content) if content is not None else ""
                 
                 # 将Markdown内容转换为HTML
                 html_content = markdown.markdown(content)
                 
+                # 确保其他字段也是字符串类型
+                title = fields.get("标题", "")
+                if not isinstance(title, str):
+                    title = str(title) if title is not None else ""
+                    
+                quote = fields.get("金句输出", "")
+                if not isinstance(quote, str):
+                    quote = str(quote) if quote is not None else ""
+                    
+                comment = fields.get("老何点评", "")
+                if not isinstance(comment, str):
+                    comment = str(comment) if comment is not None else ""
+                
                 article = {
                     "id": item.get("record_id"),
-                    "title": fields.get("标题", ""),
-                    "quote": fields.get("金句输出", ""),
-                    "comment": fields.get("老何点评", ""),
+                    "title": title,
+                    "quote": quote,
+                    "comment": comment,
                     "content": content,
                     "html_content": html_content,
                     "preview": content[:100] + "..." if len(content) > 100 else content
