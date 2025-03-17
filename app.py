@@ -1,3 +1,4 @@
+# 确保以下导入和初始化代码位于文件顶部
 from flask import Flask, render_template, request, redirect, url_for, abort
 import requests
 import json
@@ -6,6 +7,8 @@ import time
 from functools import wraps
 import markdown
 import logging
+import traceback
+import sys
 
 # 配置日志
 logging.basicConfig(
@@ -19,6 +22,7 @@ logging.basicConfig(
 
 app = Flask(__name__)
 app.config.from_object(Config)
+app.logger.setLevel(logging.INFO)
 
 # 缓存机制
 cache = {
@@ -28,6 +32,7 @@ cache = {
     'articles_expires': 0
 }
 
+# 确保所有函数定义在被调用之前
 def get_tenant_access_token():
     """获取飞书tenant_access_token"""
     now = time.time()
@@ -45,14 +50,6 @@ def get_tenant_access_token():
         "app_secret": app.config['FEISHU_APP_SECRET']
     }
     
-    # 在文件顶部添加以下导入
-    import sys
-    import traceback
-    
-    # 在现有日志配置之后添加
-    app.logger.setLevel(logging.INFO)
-    
-    # 在get_tenant_access_token函数中的try-except块中
     try:
         response = requests.post(url, headers=headers, data=json.dumps(data))
         result = response.json()
@@ -69,8 +66,26 @@ def get_tenant_access_token():
         app.logger.error(f"获取飞书token异常: {str(e)}")
         app.logger.error(traceback.format_exc())
         return None
+
+def get_articles():
+    """从飞书多维表格获取文章数据"""
+    now = time.time()
     
-    # 在get_articles函数中的try-except块中
+    # 如果缓存中有有效的文章数据，直接返回
+    if cache['articles'] and cache['articles_expires'] > now:
+        return cache['articles']
+    
+    token = get_tenant_access_token()
+    if not token:
+        app.logger.error("无法获取飞书访问令牌")
+        return []
+    
+    url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app.config['BASE_ID']}/tables/{app.config['TABLE_ID']}/records"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
+    
     try:
         response = requests.get(url, headers=headers)
         result = response.json()
@@ -127,30 +142,57 @@ def clear_cache():
 def index():
     """首页"""
     try:
+        app.logger.info("开始加载首页")
         articles = get_articles()
+        app.logger.info(f"成功获取文章列表，共{len(articles)}篇")
         return render_template('index.html', articles=articles)
     except Exception as e:
         app.logger.error(f"首页渲染异常: {str(e)}")
         app.logger.error(traceback.format_exc())
-        return render_template('500.html'), 500
+        return render_template('500.html', error_message=str(e)), 500
 
 @app.route('/article/<article_id>')
 def article_detail(article_id):
     """文章详情页"""
-    article = get_article_by_id(article_id)
-    if not article:
-        abort(404)
-    return render_template('detail.html', article=article)
+    try:
+        article = get_article_by_id(article_id)
+        if not article:
+            abort(404)
+        return render_template('detail.html', article=article)
+    except Exception as e:
+        app.logger.error(f"文章详情页渲染异常: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return render_template('500.html', error_message=str(e)), 500
 
 @app.route('/refresh', methods=['GET'])
 def refresh():
     """刷新缓存"""
-    if clear_cache():
-        # 重新获取文章数据
-        get_articles()
-        return redirect(url_for('index'))
-    else:
-        abort(500)
+    try:
+        if clear_cache():
+            # 重新获取文章数据
+            get_articles()
+            return redirect(url_for('index'))
+        else:
+            abort(500)
+    except Exception as e:
+        app.logger.error(f"刷新缓存异常: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return render_template('500.html', error_message=str(e)), 500
+
+# 添加测试路由
+@app.route('/test')
+def test():
+    """测试路由，检查应用是否正常运行"""
+    return {
+        "status": "ok",
+        "message": "应用正常运行",
+        "config": {
+            "app_id_set": bool(app.config.get('FEISHU_APP_ID')),
+            "app_secret_set": bool(app.config.get('FEISHU_APP_SECRET')),
+            "base_id_set": bool(app.config.get('BASE_ID')),
+            "table_id_set": bool(app.config.get('TABLE_ID'))
+        }
+    }
 
 # 错误处理器
 @app.errorhandler(404)
@@ -159,15 +201,14 @@ def page_not_found(e):
 
 @app.errorhandler(500)
 def server_error(e):
-    return render_template('500.html'), 500
+    return render_template('500.html', error_message=str(e)), 500
 
-# 添加自定义过滤器
-@app.template_filter('now')
-def filter_now(format_string):
+# 添加当前年份变量
+@app.context_processor
+def inject_year():
+    """向所有模板注入当前年份变量"""
     import datetime
-    if format_string == 'year':
-        return datetime.datetime.now().year
-    return datetime.datetime.now().strftime(format_string)
+    return {'current_year': datetime.datetime.now().year}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
