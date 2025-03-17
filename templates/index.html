@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - 个人博客{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2 class="section-title">最新文章</h2>
+    <a href="{{ url_for('refresh') }}" id="refresh-button" class="refresh-button">刷新内容</a>
+</div>
+
+<div class="loader"></div>
+
+<section class="articles">
+    {% if articles %}
+        {% for article in articles %}
+        <article class="article-card">
+            <h3 class="article-title">
+                <a href="{{ url_for('article_detail', article_id=article.id) }}" target="_blank">{{ article.title }}</a>
+            </h3>
+            {% if article.quote %}
+            <div class="article-quote">
+                <strong>{{ article.quote }}</strong>
+            </div>
+            {% endif %}
+            {% if article.comment %}
+            <div class="article-comment">
+                <p>点评: {{ article.comment }}</p>
+            </div>
+            {% endif %}
+            <div class="article-preview">
+                <p>{{ article.preview }}</p>
+            </div>
+            <a href="{{ url_for('article_detail', article_id=article.id) }}" class="read-more" target="_blank">阅读全文</a>
+        </article>
+        {% endfor %}
+    {% else %}
+        <div class="no-articles">
+            <p>暂无文章</p>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}
