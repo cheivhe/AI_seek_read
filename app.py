@@ -96,26 +96,54 @@ def get_articles():
             
             for item in items:
                 fields = item.get("fields", {})
-                # 确保content是字符串类型
+                # 确保content是字符串类型并清理格式
                 content = fields.get("概要内容输出", "")
                 if not isinstance(content, str):
-                    content = str(content) if content is not None else ""
+                    # 如果是列表或字典，尝试提取纯文本
+                    if isinstance(content, (list, dict)):
+                        try:
+                            # 尝试将复杂对象转换为纯文本
+                            import re
+                            content_str = str(content)
+                            # 移除所有类似 [{'type': 'text'} 这样的标记
+                            content = re.sub(r'\[\{.*?\}\]', '', content_str)
+                            # 移除其他可能的标记
+                            content = re.sub(r'\{.*?\}', '', content)
+                            # 清理多余的空格和换行
+                            content = re.sub(r'\s+', ' ', content).strip()
+                        except:
+                            content = "内容解析错误"
+                    else:
+                        content = str(content) if content is not None else ""
+                
+                # 清理内容中的特殊格式标记
+                import re
+                content = re.sub(r'\[\{.*?\}\]', '', content)
+                content = re.sub(r'\{.*?\}', '', content)
+                content = re.sub(r"'type': 'text'", '', content)
+                content = re.sub(r"'text': '(.*?)'", r'\1', content)
                 
                 # 将Markdown内容转换为HTML
                 html_content = markdown.markdown(content)
                 
-                # 确保其他字段也是字符串类型
+                # 同样处理其他字段
                 title = fields.get("标题", "")
                 if not isinstance(title, str):
                     title = str(title) if title is not None else ""
-                    
+                title = re.sub(r'\[\{.*?\}\]', '', title)
+                title = re.sub(r'\{.*?\}', '', title)
+                
                 quote = fields.get("金句输出", "")
                 if not isinstance(quote, str):
                     quote = str(quote) if quote is not None else ""
-                    
+                quote = re.sub(r'\[\{.*?\}\]', '', quote)
+                quote = re.sub(r'\{.*?\}', '', quote)
+                
                 comment = fields.get("老何点评", "")
                 if not isinstance(comment, str):
                     comment = str(comment) if comment is not None else ""
+                comment = re.sub(r'\[\{.*?\}\]', '', comment)
+                comment = re.sub(r'\{.*?\}', '', comment)
                 
                 article = {
                     "id": item.get("record_id"),

@@ -424,16 +424,59 @@ footer {
     border-top: 1px solid var(--border-color);
 }
 
-/* 错误页面 */
+/* 错误页面样式 */
 .error-page {
     text-align: center;
-    padding: 50px 0;
+    padding: 40px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .error-page h1 {
     font-size: 72px;
-    color: var(--primary-color);
+    color: #c62828;
     margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.error-page h2 {
+    font-size: 24px;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.error-page p {
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.error-details {
+    background-color: #f8f8f8;
+    border-left: 4px solid #c62828;
+    padding: 15px;
+    margin-bottom: 30px;
+    text-align: left;
+    border-radius: 0 4px 4px 0;
+}
+
+.back-link {
+    display: inline-block;
+    background-color: #c62828;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.back-link:hover {
+    background-color: #b71c1c;
+    text-decoration: none;
 }
 
 .error-page h2 {
