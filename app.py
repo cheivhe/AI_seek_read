@@ -45,6 +45,14 @@ def get_tenant_access_token():
         "app_secret": app.config['FEISHU_APP_SECRET']
     }
     
+    # 在文件顶部添加以下导入
+    import sys
+    import traceback
+    
+    # 在现有日志配置之后添加
+    app.logger.setLevel(logging.INFO)
+    
+    # 在get_tenant_access_token函数中的try-except块中
     try:
         response = requests.post(url, headers=headers, data=json.dumps(data))
         result = response.json()
@@ -59,26 +67,10 @@ def get_tenant_access_token():
             return None
     except Exception as e:
         app.logger.error(f"获取飞书token异常: {str(e)}")
+        app.logger.error(traceback.format_exc())
         return None
-
-def get_articles():
-    """从飞书多维表格获取文章数据"""
-    now = time.time()
     
-    # 如果缓存中有有效的文章数据，直接返回
-    if cache['articles'] and cache['articles_expires'] > now:
-        return cache['articles']
-    
-    token = get_tenant_access_token()
-    if not token:
-        return []
-    
-    url = f"https://open.feishu.cn/open-apis/bitable/v1/apps/{app.config['BASE_ID']}/tables/{app.config['TABLE_ID']}/records"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    }
-    
+    # 在get_articles函数中的try-except块中
     try:
         response = requests.get(url, headers=headers)
         result = response.json()
@@ -114,6 +106,7 @@ def get_articles():
             return []
     except Exception as e:
         app.logger.error(f"获取飞书数据异常: {str(e)}")
+        app.logger.error(traceback.format_exc())
         return []
 
 def get_article_by_id(article_id):
@@ -133,8 +126,13 @@ def clear_cache():
 @app.route('/')
 def index():
     """首页"""
-    articles = get_articles()
-    return render_template('index.html', articles=articles)
+    try:
+        articles = get_articles()
+        return render_template('index.html', articles=articles)
+    except Exception as e:
+        app.logger.error(f"首页渲染异常: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return render_template('500.html'), 500
 
 @app.route('/article/<article_id>')
 def article_detail(article_id):
